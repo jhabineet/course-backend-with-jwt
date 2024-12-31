@@ -2,6 +2,8 @@ const { Router } = require("express");
 const router = Router();
 const userMiddleware = require("../middleware/user");
 const { User, Course } = require("../db");
+const { JWT_SECRET } = require("../config");
+const jwt = require("jsonwebtoken");
 
 // User Routes
 router.post('/signup', async(req, res) => {
@@ -25,6 +27,25 @@ router.post('/signup', async(req, res) => {
     }
 });
 
+router.post('/signin', async(req, res) => {
+    // Implement user signin logic
+    const username = req.body.username;
+    const password = req.body.password;
+
+    const userExists = await User.find({ username: username, password: password })
+    if(userExists) {
+        res.status(411).json({
+            msg: "User Doesn't Exists"
+        })    
+    } else {
+        const token = jwt.sign({ username }, JWT_SECRET)
+        return res.status(200).json({
+            msg: "User Signed In Successfully", 
+            token: token,
+        })
+    }
+})
+
 router.get('/courses', async(req, res) => {
     // Implement listing all courses logic
     const response = await User.find({ })
@@ -36,7 +57,7 @@ router.get('/courses', async(req, res) => {
 router.post('/courses/:courseId', userMiddleware, async(req, res) => {
     // Implement course purchase logic
     const courseId = req.params.courseId;
-    const username = req.headers.username;
+    const username = req.username; // This is coming from the usermiddleware
 
     await User.updateOne({
         username: username,
@@ -53,7 +74,7 @@ router.post('/courses/:courseId', userMiddleware, async(req, res) => {
 router.get('/purchasedCourses', userMiddleware, async(req, res) => {
     // Implement fetching purchased courses logic
     const user = await User.findOne({
-        username: req.headers.username
+        username: req.username
     })
     const response = await Course.find({
         _id: {
